@@ -12,7 +12,9 @@ int main() {
 		m_map.Create();
 		m_map.Render();
 
-		while ( ( GetAsyncKeyState( VK_SPACE ) & 0x0001 ) == false ) {}
+		while ( ( GetAsyncKeyState( VK_SPACE ) & 0x0001 ) == false ) {
+			if ( ( GetAsyncKeyState( VK_ESCAPE ) & 0x0001 ) ) return 0;
+		}
 	}
 	return 0;
 }
