@@ -80,6 +80,7 @@ void CMap::Create()
 		CreateSplit();
 	}
 	CreateRoom();
+	CreateAisle();
 }
 
 //---------------------------
@@ -118,9 +119,9 @@ void CMap::Render()
 		const int aSize = static_cast<int>( m_Area.size() );
 		for ( int i = 0; i < aSize; i++ ) {
 			std::cout << "- Area    : " << COLOR_ID( i * 10 + 0 ) << std::endl;
-			std::cout << "  sPos x  : " << m_Area[i].Position.first.x  << ", y : " << m_Area[i].Position.first.y  << std::endl;
-			std::cout << "  ePos x  : " << m_Area[i].Position.second.x << ", y : " << m_Area[i].Position.second.y << std::endl;
-			std::cout << "  Size w  : " << m_Area[i].Size.x << ", h : " << m_Area[i].Size.y << std::endl;
+			std::cout << "  sPos    : x = " << m_Area[i].Position.first.x  << ", y = " << m_Area[i].Position.first.y  << std::endl;
+			std::cout << "  ePos    : x = " << m_Area[i].Position.second.x << ", y = " << m_Area[i].Position.second.y << std::endl;
+			std::cout << "  Size    : w = " << m_Area[i].Size.x << ", h = " << m_Area[i].Size.y << std::endl;
 			std::cout << "  Room Id : " << COLOR_ID( m_Area[i].RoomId * 10 + 1 ) << std::endl;
 			for ( auto& [sId, aList] : m_Area[i].SplitData ) {
 				std::cout << "  - Split Id : " << COLOR_ID( sId * 10 + 2 ) << std::endl;
@@ -130,46 +131,55 @@ void CMap::Render()
 			}
 		}
 		std::cout << "--------------------" << std::endl;
-		std::cout << "    Split Datas" << std::endl;
+		std::cout << "    Split Datas"		<< std::endl;
 		std::cout << "--------------------" << std::endl;
 		const int sSize = static_cast<int>( m_Split.size() );
 		for ( int i = 0; i < sSize; i++ ) {
 			std::cout << "- Split  : " << COLOR_ID( i * 10 + 2 ) << std::endl;
-			std::cout << "  sPos x : " << m_Split[i].Position.first.x  << ", y : " << m_Split[i].Position.first.y  << std::endl;
-			std::cout << "  ePos x : " << m_Split[i].Position.second.x << ", y : " << m_Split[i].Position.second.y << std::endl;
-			std::cout << "  Size w : " << m_Split[i].Size.x << ", h : " << m_Split[i].Size.y << std::endl;
+			std::cout << "  sPos   : x = " << m_Split[i].Position.first.x  << ", y = " << m_Split[i].Position.first.y  << std::endl;
+			std::cout << "  ePos   : x = " << m_Split[i].Position.second.x << ", y = " << m_Split[i].Position.second.y << std::endl;
+			std::cout << "  Size   : w = " << m_Split[i].Size.x << ", h = " << m_Split[i].Size.y << std::endl;
 			std::cout << "  Type   : " << ( m_Split[i].IsVertical() ? "Vertical" : "Horizontal" ) << std::endl;
 		}
 		std::cout << "--------------------" << std::endl;
-		std::cout << "     Room Datas" << std::endl;
+		std::cout << "     Room Datas"		<< std::endl;
 		std::cout << "--------------------" << std::endl;
 		const int rSize = static_cast<int>( m_Room.size() );
 		for ( int i = 0; i < rSize; i++ ) {
 			std::cout << "- Room   : " << COLOR_ID( i * 10 + 1 ) << std::endl;
-			std::cout << "  sPos x : " << m_Room[i].Position.first.x  << ", y : " << m_Room[i].Position.first.y  << std::endl;
-			std::cout << "  ePos x : " << m_Room[i].Position.second.x << ", y : " << m_Room[i].Position.second.y << std::endl;
-			std::cout << "  Size w : " << m_Room[i].Size.x << ", h : " << m_Room[i].Size.y << std::endl;
+			std::cout << "  sPos   : x = " << m_Room[i].Position.first.x  << ", y = " << m_Room[i].Position.first.y  << std::endl;
+			std::cout << "  ePos   : x = " << m_Room[i].Position.second.x << ", y = " << m_Room[i].Position.second.y << std::endl;
+			std::cout << "  Size   : w = " << m_Room[i].Size.x << ", h = " << m_Room[i].Size.y << std::endl;
+			std::cout << "  - ObjectData : " << std::endl;
+			for ( auto& oId : m_Room[i].ObjectData ) {
+				std::cout << "    Object Id  : " << COLOR_ID( oId * 10 + 4 ) << std::endl;
+			}
+			std::cout << "  MonsterHouse : " << ( m_Room[i].MonsterHouse ? "true" : "false" ) << std::endl;
 		}
 		std::cout << "--------------------" << std::endl;
-		std::cout << "    Object Datas" << std::endl;
+		std::cout << "    Object Datas"		<< std::endl;
 		std::cout << "--------------------" << std::endl;
 		const int oSize = static_cast<int>( m_Object.size() );
 		for ( int i = 0; i < oSize; i++ ) {
 			std::cout << "- Object : " << COLOR_ID( i * 10 + 4 ) << std::endl;
-			std::cout << "  sPos x : " << m_Object[i].Position.first.x << ", y : "  << m_Object[i].Position.first.y  << std::endl;
-			std::cout << "  ePos x : " << m_Object[i].Position.second.x << ", y : " << m_Object[i].Position.second.y << std::endl;
-			std::cout << "  Size w : " << m_Object[i].Size.x << ", h : " << m_Object[i].Size.y << std::endl;
+			std::cout << "  sPos   : x = " << m_Object[i].Position.first.x  << ", y = " << m_Object[i].Position.first.y  << std::endl;
+			std::cout << "  ePos   : x = " << m_Object[i].Position.second.x << ", y = " << m_Object[i].Position.second.y << std::endl;
+			std::cout << "  Size   : w = " << m_Object[i].Size.x << ", h = " << m_Object[i].Size.y << std::endl;
 			std::cout << "  Type   : " << ( m_Object[i].Type == ObjectType::Wall ? "Wall" : "Hole" ) << std::endl;
 		}
 		std::cout << "--------------------" << std::endl;
-		std::cout << "    Aisle Datas" << std::endl;
+		std::cout << "    Aisle Datas"		<< std::endl;
 		std::cout << "--------------------" << std::endl;
 		const int iSize = static_cast<int>( m_Aisle.size() );
 		for ( int i = 0; i < iSize; i++ ) {
-			std::cout << "- Aisle  : " << COLOR_ID( i * 10 + 3 ) << std::endl;
-			std::cout << "  sPos x : " << m_Aisle[i].Position.first.x  << ", y : " << m_Aisle[i].Position.first.y  << std::endl;
-			std::cout << "  ePos x : " << m_Aisle[i].Position.second.x << ", y : " << m_Aisle[i].Position.second.y << std::endl;
-			std::cout << "  Size w : " << m_Aisle[i].Size.x << ", h : " << m_Aisle[i].Size.y << std::endl;
+			std::cout << "- Aisle     : " << COLOR_ID( i * 10 + 3 ) << std::endl;
+			std::cout << "  sPos      : x = " << m_Aisle[i].Position.first.x  << ", y = " << m_Aisle[i].Position.first.y  << std::endl;
+			std::cout << "  ePos      : x = " << m_Aisle[i].Position.second.x << ", y = " << m_Aisle[i].Position.second.y << std::endl;
+			std::cout << "  Size      : w = " << m_Aisle[i].Size.x << ", h = " << m_Aisle[i].Size.y << std::endl;
+			std::cout << "  RoomAisle : " << ( m_Aisle[i].RoomAisle ? "true" : "false" ) << std::endl;
+			std::cout << "  - Adjacent : " << std::endl;
+			std::cout << "    " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( m_Aisle[i].Adjacent.first * 10 + ( m_Aisle[i].RoomAisle ? 1 : 3 ) ) << std::endl;
+			std::cout << "    Aisle Id : " << COLOR_ID( m_Aisle[i].Adjacent.second * 10 + 3 ) << std::endl;
 		}
 		std::cout << "--------------------" << std::endl;
 	}
@@ -217,6 +227,16 @@ void CMap::MapUpdate()
 		for ( int y = m_Room[i].Position.first.y; y <= m_Room[i].Position.second.y; ++y ) {
 			for ( int x = m_Room[i].Position.first.x; x <= m_Room[i].Position.second.x; ++x ) {
 				m_Map[y][x] = i * 10 + 1;
+			}
+		}
+	}
+
+	// 通路のマップの反映
+	const int aisleSize = static_cast<int>( m_Aisle.size() );
+	for ( int i = 0; i < aisleSize; ++i ) {
+		for ( int y = m_Aisle[i].Position.first.y; y <= m_Aisle[i].Position.second.y; ++y ) {
+			for ( int x = m_Aisle[i].Position.first.x; x <= m_Aisle[i].Position.second.x; ++x ) {
+				m_Map[y][x] = i * 10 + 3;
 			}
 		}
 	}
@@ -332,6 +352,7 @@ void CMap::CreateObject( const int roomId )
 	const int size = static_cast<int>( cornerPos.size() );
 	for ( int i = 0; i < size; i++ ) {
 		if ( Random::Probability( 1, 2 ) ) continue;
+		const int newObjectId = static_cast<int>( m_Object.size() );
 		ObjectData newObject;
 
 		// 縦か横をランダムで決める
@@ -352,7 +373,90 @@ void CMap::CreateObject( const int roomId )
 		}
 		newObject.Size = newObject.Position.second - newObject.Position.first + Vector2( 1, 1 );
 		newObject.Type = ObjectType::Wall;
+
 		m_Object.emplace_back( newObject );
+		m_Room[roomId].ObjectData.emplace_back( newObjectId );
+	}
+}
+
+//---------------------------
+// 通路の作成
+//---------------------------
+void CMap::CreateAisle()
+{
+	for ( auto& nowArea : m_Area ) {
+		std::vector<std::pair<ulong, std::vector<ulong>>> shuffleSplitData;
+
+		const int splitDataSize = static_cast<int>( nowArea.SplitData.size() );
+		shuffleSplitData.reserve( splitDataSize );
+		for ( auto& [sId, areaList] : nowArea.SplitData ) {
+			shuffleSplitData.emplace_back( std::make_pair( sId, areaList ) );
+		}
+		shuffleSplitData = Random::Shuffle( shuffleSplitData );
+
+		for ( auto& [sId, areaList] : shuffleSplitData ) {
+			auto shuffleAreaList = Random::Shuffle( areaList );
+			const int shuffleAreaListSize = static_cast<int>( shuffleAreaList.size() );
+			for ( int i = 0; i < shuffleAreaListSize; i++ ) {
+				int aisleCreateNum = 0;
+
+				AisleData newAisle;
+				newAisle.RoomAisle		= true;
+				newAisle.Adjacent.first = nowArea.RoomId;
+
+				if ( m_Split[sId].IsVertical() ) {
+					// 左側
+					if ( m_Split[sId].Position.first.x < m_Room[nowArea.RoomId].Position.first.x ) {
+						// 通路が作れる幅を取得
+						auto aisleMinPos = m_Room[nowArea.RoomId].Position.first.y;
+						auto aisleMaxPos = m_Room[nowArea.RoomId].Position.second.y;
+						for ( auto& oId : m_Room[nowArea.RoomId].ObjectData ) {
+							if ( m_Object[oId].Position.first.x != m_Room[nowArea.RoomId].Position.first.x ) continue;
+
+							if ( m_Object[oId].Position.first.y == m_Room[nowArea.RoomId].Position.first.y ) {
+								aisleMinPos = m_Object[oId].Position.second.y + 1;
+							}
+							else {
+								aisleMaxPos = m_Object[oId].Position.first.y - 1;
+							}
+						}
+						aisleCreateNum = ( aisleMaxPos - aisleMinPos ) / 2;
+
+						// TODO: 他の通路とかぶる場合ずらす
+
+						// 部屋に繋がる通路を作成
+						newAisle.Position.first	 = Vector2( m_Split[sId].Position.first.x + 1, Random::GetRand( aisleMinPos, aisleMaxPos ) );
+						newAisle.Position.second = Vector2( m_Room[nowArea.RoomId].Position.first.x - 1, newAisle.Position.first.y );
+
+						// TODO: m_Area[shuffleAreaList[i]]から右側通路を作成
+
+						// TODO: お互いを繋げる通路を作成
+					}
+					// 右側
+					else {
+
+					}
+				}
+				else {
+					// 上側
+					if ( m_Split[sId].Position.first.y < m_Area[nowArea.RoomId].Position.first.y ) {
+
+					}
+					// 下側
+					else{
+
+					}
+				}
+				newAisle.Size = newAisle.Position.second - newAisle.Position.first + Vector2( 1, 1 );
+				m_Aisle.emplace_back( newAisle );
+
+				// 確率か通路が作れなくなったら他のエリアは繋げず終了する
+				if ( i + 1 >= aisleCreateNum || Random::Probability( 2, 3 ) ) break;
+			}
+
+			// 確率で他の分割線は繋げず終了する
+			if ( Random::Probability( 2, 3 ) ) break;
+		}
 	}
 }
 
@@ -389,6 +493,7 @@ void CMap::UpdateArea( const ulong splitAreaId, const ulong newSplitId )
 void CMap::UpdateSplitArea( const AreaData& oldAreaData, const ulong splitAreaId, const ulong newAreaId, const ulong newSplitId )
 {
 	for ( auto& [splitId, areaList] : oldAreaData.SplitData ) {
+		// 分割したエリアの隣接している分割線とタイプが同じ
 		if ( m_Split[splitId].Type == m_Split[newSplitId].Type ) {
 			const auto splitPos		= m_Split[newSplitId].IsVertical() ? m_Split[splitId].Position.first.x		: m_Split[splitId].Position.first.y;
 			const auto newSplitPos	= m_Split[newSplitId].IsVertical() ? m_Split[newSplitId].Position.first.x	: m_Split[newSplitId].Position.first.y;
@@ -403,6 +508,7 @@ void CMap::UpdateSplitArea( const AreaData& oldAreaData, const ulong splitAreaId
 				m_Area[splitAreaId].SplitData.erase( splitId );
 			}
 		}
+		// 分割したエリアの隣接している分割線とタイプが違う
 		else {
 			const auto splitAreaFirstPos	= m_Split[newSplitId].IsVertical() ? m_Area[splitAreaId].Position.first.x	: m_Area[splitAreaId].Position.first.y;
 			const auto splitAreaSecondPos	= m_Split[newSplitId].IsVertical() ? m_Area[splitAreaId].Position.second.x	: m_Area[splitAreaId].Position.second.y;

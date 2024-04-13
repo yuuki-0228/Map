@@ -111,6 +111,8 @@ private:
 	void CreateSplit();						// 分割線の作成
 	void CreateRoom();						// 部屋の作成
 	void CreateObject( const int roomId );	// オブジェクトの作成
+	void CreateAisle();						// 通路の作成
+
 
 	void UpdateArea( const ulong splitAreaId, const ulong newSplitId ); // エリアの更新
 	void UpdateSplitArea( const AreaData& oldAreaData, const ulong splitAreaId, const ulong newAreaId, const ulong newSplitId ); // エリアの分割線の更新
