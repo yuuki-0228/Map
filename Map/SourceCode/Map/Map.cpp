@@ -80,18 +80,16 @@ void CMap::Create()
 		CreateSplit();
 	}
 	CreateRoom();
-	CreateAisle();
+	CreateAreaAisle();
 }
 
 //---------------------------
 // ï\é¶
 //---------------------------
-void CMap::Render()
+void CMap::Render( const bool dispIdMap, const bool dispDebug )
 {
 	MapUpdate();
 
-	static bool dispIdMap = true;
-	if ( GetAsyncKeyState( VK_RSHIFT ) & 0x0001 ) dispIdMap = !dispIdMap;
 	if ( dispIdMap ) {
 		for ( int y = 0; y < MAP_SIZE; y++ ) {
 			for ( int x = 0; x < MAP_SIZE; x++ ) {
@@ -110,8 +108,6 @@ void CMap::Render()
 	}
 	std::cout << std::endl << "<< [\x1b[31mSpace\x1b[39m : \x1b[33mÉ}ÉbÉvÇÃçƒê∂ê¨\x1b[39m] [\x1b[31mEnter\x1b[39m : \x1b[33mÉfÉoÉbÉNèÓïÒÇÃï\é¶/îÒï\é¶\x1b[39m] [\x1b[31mR_Shift\x1b[39m : \x1b[33mÉ}ÉbÉvÇ…IDÇÃï\é¶/îÒï\é¶\x1b[39m] >>" << std::endl << std::endl;
 
-	static bool dispDebug = true;
-	if ( GetAsyncKeyState( VK_RETURN ) & 0x0001 ) dispDebug = !dispDebug;
 	if ( dispDebug ){
 		std::cout << "--------------------" << std::endl;
 		std::cout << "    Area Datas" << std::endl;
@@ -150,11 +146,17 @@ void CMap::Render()
 			std::cout << "  sPos   : x = " << m_Room[i].Position.first.x  << ", y = " << m_Room[i].Position.first.y  << std::endl;
 			std::cout << "  ePos   : x = " << m_Room[i].Position.second.x << ", y = " << m_Room[i].Position.second.y << std::endl;
 			std::cout << "  Size   : w = " << m_Room[i].Size.x << ", h = " << m_Room[i].Size.y << std::endl;
+			std::cout << "  MonsterHouse : " << ( m_Room[i].MonsterHouse ? "true" : "false" ) << std::endl;
 			std::cout << "  - ObjectData : " << std::endl;
 			for ( auto& oId : m_Room[i].ObjectData ) {
 				std::cout << "    Object Id  : " << COLOR_ID( oId * 10 + 4 ) << std::endl;
 			}
-			std::cout << "  MonsterHouse : " << ( m_Room[i].MonsterHouse ? "true" : "false" ) << std::endl;
+			for ( auto& [sId, aList] : m_Room[i].AisleData ) {
+				std::cout << "  - Split Id : " << COLOR_ID( sId * 10 + 2 ) << std::endl;
+				for ( auto& aId : aList ) {
+					std::cout << "    Aisle Id : " << COLOR_ID( aId * 10 + 3 ) << std::endl;
+				}
+			}
 		}
 		std::cout << "--------------------" << std::endl;
 		std::cout << "    Object Datas"		<< std::endl;
@@ -178,8 +180,8 @@ void CMap::Render()
 			std::cout << "  Size      : w = " << m_Aisle[i].Size.x << ", h = " << m_Aisle[i].Size.y << std::endl;
 			std::cout << "  RoomAisle : " << ( m_Aisle[i].RoomAisle ? "true" : "false" ) << std::endl;
 			std::cout << "  - Adjacent : " << std::endl;
-			std::cout << "    " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( m_Aisle[i].Adjacent.first * 10 + ( m_Aisle[i].RoomAisle ? 1 : 3 ) ) << std::endl;
-			std::cout << "    Aisle Id : " << COLOR_ID( m_Aisle[i].Adjacent.second * 10 + 3 ) << std::endl;
+			std::cout << "    " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( m_Aisle[i].Adjacent.first  * 10 + ( m_Aisle[i].RoomAisle ? 1 : 3 ) ) << std::endl;
+			std::cout << "    " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( m_Aisle[i].Adjacent.second * 10 + ( m_Aisle[i].RoomAisle ? 1 : 3 ) ) << std::endl;
 		}
 		std::cout << "--------------------" << std::endl;
 	}
@@ -356,7 +358,7 @@ void CMap::CreateObject( const int roomId )
 		ObjectData newObject;
 
 		// ècÇ©â°ÇÉâÉìÉ_ÉÄÇ≈åàÇﬂÇÈ
-		if ( Random::Probability( 2, 3 ) ) {
+		if ( Random::Probability( 1, 2 ) ) {
 			newObject.Position.first = i % 2 == 0 ?
 				cornerPos[i] :
 				cornerPos[i] + Vector2( addSize[i].x, 0 );
@@ -382,7 +384,7 @@ void CMap::CreateObject( const int roomId )
 //---------------------------
 // í òHÇÃçÏê¨
 //---------------------------
-void CMap::CreateAisle()
+void CMap::CreateAreaAisle()
 {
 	for ( auto& nowArea : m_Area ) {
 		std::vector<std::pair<ulong, std::vector<ulong>>> shuffleSplitData;
@@ -395,69 +397,215 @@ void CMap::CreateAisle()
 		shuffleSplitData = Random::Shuffle( shuffleSplitData );
 
 		for ( auto& [sId, areaList] : shuffleSplitData ) {
-			auto shuffleAreaList = Random::Shuffle( areaList );
-			const int shuffleAreaListSize = static_cast<int>( shuffleAreaList.size() );
+			bool		splitSkip			= false;
+			auto		shuffleAreaList		= Random::Shuffle( areaList );
+			const int	shuffleAreaListSize = static_cast<int>( shuffleAreaList.size() );
 			for ( int i = 0; i < shuffleAreaListSize; i++ ) {
-				int aisleCreateNum = 0;
+				int aisleCreateNum	= 0;
 
-				AisleData newAisle;
-				newAisle.RoomAisle		= true;
-				newAisle.Adjacent.first = nowArea.RoomId;
-
-				if ( m_Split[sId].IsVertical() ) {
-					// ç∂ë§
-					if ( m_Split[sId].Position.first.x < m_Room[nowArea.RoomId].Position.first.x ) {
-						// í òHÇ™çÏÇÍÇÈïùÇéÊìæ
-						auto aisleMinPos = m_Room[nowArea.RoomId].Position.first.y;
-						auto aisleMaxPos = m_Room[nowArea.RoomId].Position.second.y;
-						for ( auto& oId : m_Room[nowArea.RoomId].ObjectData ) {
-							if ( m_Object[oId].Position.first.x != m_Room[nowArea.RoomId].Position.first.x ) continue;
-
-							if ( m_Object[oId].Position.first.y == m_Room[nowArea.RoomId].Position.first.y ) {
-								aisleMinPos = m_Object[oId].Position.second.y + 1;
-							}
-							else {
-								aisleMaxPos = m_Object[oId].Position.first.y - 1;
-							}
+				// í òHÇçÏê¨Ç≈Ç´ÇÈÇ©
+				if ( m_Room[nowArea.RoomId].AisleData.count( sId ) != 0 )
+				{
+					for ( auto& aId : m_Room[nowArea.RoomId].AisleData[sId] ) {
+						if ( m_Aisle[aId].Adjacent.second == m_Area[shuffleAreaList[i]].RoomId ) {
+							splitSkip = true;
+							break;
 						}
-						aisleCreateNum = ( aisleMaxPos - aisleMinPos ) / 2;
-
-						// TODO: ëºÇÃí òHÇ∆Ç©Ç‘ÇÈèÍçáÇ∏ÇÁÇ∑
-
-						// ïîâÆÇ…åqÇ™ÇÈí òHÇçÏê¨
-						newAisle.Position.first	 = Vector2( m_Split[sId].Position.first.x + 1, Random::GetRand( aisleMinPos, aisleMaxPos ) );
-						newAisle.Position.second = Vector2( m_Room[nowArea.RoomId].Position.first.x - 1, newAisle.Position.first.y );
-
-						// TODO: m_Area[shuffleAreaList[i]]Ç©ÇÁâEë§í òHÇçÏê¨
-
-						// TODO: Ç®å›Ç¢ÇåqÇ∞ÇÈí òHÇçÏê¨
 					}
-					// âEë§
-					else {
-
-					}
+					if ( splitSkip ) break;
 				}
-				else {
-					// è„ë§
-					if ( m_Split[sId].Position.first.y < m_Area[nowArea.RoomId].Position.first.y ) {
 
-					}
-					// â∫ë§
-					else{
+				// í òHÇÃçÏê¨
+				ulong newAisleId = 0;
+				if ( CreateAisle( nowArea, m_Area[shuffleAreaList[i]], sId, &newAisleId, &aisleCreateNum ) == false ) break;
 
-					}
+				// åqÇ∞ÇÈïîâÆÇ…Ç‹Çæí òHÇ™Ç»Ç¢èÍçáçÏê¨Ç∑ÇÈ
+				if ( m_Room[m_Area[shuffleAreaList[i]].RoomId].AisleData.count( sId ) == 0 ) {
+					CreateAisle( m_Area[shuffleAreaList[i]], nowArea, sId );
 				}
-				newAisle.Size = newAisle.Position.second - newAisle.Position.first + Vector2( 1, 1 );
-				m_Aisle.emplace_back( newAisle );
+
+				// í òHí ÇµÇåqÇ∞ÇÈí òHÇçÏê¨
+				const auto aisleId = Random::Shuffle( m_Room[m_Area[shuffleAreaList[i]].RoomId].AisleData[sId] )[0];
+				CreateConnectAisle( sId, newAisleId, aisleId );
 
 				// ämó¶Ç©í òHÇ™çÏÇÍÇ»Ç≠Ç»Ç¡ÇΩÇÁëºÇÃÉGÉäÉAÇÕåqÇ∞Ç∏èIóπÇ∑ÇÈ
 				if ( i + 1 >= aisleCreateNum || Random::Probability( 2, 3 ) ) break;
 			}
 
 			// ämó¶Ç≈ëºÇÃï™äÑê¸ÇÕåqÇ∞Ç∏èIóπÇ∑ÇÈ
-			if ( Random::Probability( 2, 3 ) ) break;
+			if ( splitSkip == false && Random::Probability( 1, 5 ) == false ) break;
 		}
 	}
+}
+
+//---------------------------
+// í òHÇÃçÏê¨
+//---------------------------
+bool CMap::CreateAisle( const AreaData& nowArea, const AreaData& Area, const ulong splitId, ulong* id, int* aisleCreateNum )
+{
+	const int newAisleId = static_cast<int>( m_Aisle.size() );
+
+	AisleData newAisle;
+	newAisle.RoomAisle			= true;
+	newAisle.Adjacent.first		= nowArea.RoomId;
+	newAisle.Adjacent.second	= Area.RoomId;
+
+	if ( m_Split[splitId].IsVertical() ) {
+		// ç∂ë§
+		if ( m_Split[splitId].Position.first.x < m_Room[nowArea.RoomId].Position.first.x ) {
+			auto aisleMinPos = m_Room[nowArea.RoomId].Position.first.y;
+			auto aisleMaxPos = m_Room[nowArea.RoomId].Position.second.y;
+			for ( auto& oId : m_Room[nowArea.RoomId].ObjectData ) {
+				if ( m_Object[oId].Position.first.x != m_Room[nowArea.RoomId].Position.first.x ) continue;
+
+				if ( m_Object[oId].Position.first.y == m_Room[nowArea.RoomId].Position.first.y ) {
+					aisleMinPos = m_Object[oId].Position.second.y + 1;
+				}
+				else {
+					aisleMaxPos = m_Object[oId].Position.first.y - 1;
+				}
+			}
+			if ( aisleCreateNum != nullptr ) *aisleCreateNum = ( aisleMaxPos - aisleMinPos ) / 2;
+
+			// ïîâÆÇ…åqÇ™ÇÈí òHÇçÏê¨
+			newAisle.Position.first	 = Vector2( m_Split[splitId].Position.first.x, Random::GetRand( aisleMinPos, aisleMaxPos ) );
+			newAisle.Position.second = Vector2( m_Room[nowArea.RoomId].Position.first.x - 1, newAisle.Position.first.y );
+
+			// ëºÇÃí òHÇ∆Ç©Ç‘ÇÈèÍçáçÏê¨ÇµÇ»Ç¢
+			for ( auto& aId : m_Room[nowArea.RoomId].AisleData[splitId] ) {
+				if ( m_Aisle[aId].Position.first.y - 1 <= newAisle.Position.first.y && newAisle.Position.first.y <= m_Aisle[aId].Position.first.y + 1 ) {
+					return false;
+				}
+			}
+		}
+		// âEë§
+		else {
+			auto aisleMinPos = m_Room[nowArea.RoomId].Position.first.y;
+			auto aisleMaxPos = m_Room[nowArea.RoomId].Position.second.y;
+			for ( auto& oId : m_Room[nowArea.RoomId].ObjectData ) {
+				if ( m_Object[oId].Position.second.x  != m_Room[nowArea.RoomId].Position.second.x ) continue;
+
+				if ( m_Object[oId].Position.first.y == m_Room[nowArea.RoomId].Position.first.y )
+				{
+					aisleMinPos = m_Object[oId].Position.second.y + 1;
+				} 
+				else {
+					aisleMaxPos = m_Object[oId].Position.first.y - 1;
+				}
+			}
+			if ( aisleCreateNum != nullptr ) *aisleCreateNum = ( aisleMaxPos - aisleMinPos ) / 2;
+
+			// ïîâÆÇ…åqÇ™ÇÈí òHÇçÏê¨
+			newAisle.Position.first  = Vector2( m_Room[nowArea.RoomId].Position.second.x + 1, Random::GetRand( aisleMinPos, aisleMaxPos ) );
+			newAisle.Position.second = Vector2( m_Split[splitId].Position.first.x, newAisle.Position.first.y );
+
+			// ëºÇÃí òHÇ∆Ç©Ç‘ÇÈèÍçáçÏê¨ÇµÇ»Ç¢
+			for ( auto& aId : m_Room[nowArea.RoomId].AisleData[splitId] ) {
+				if ( m_Aisle[aId].Position.first.y - 1 <= newAisle.Position.first.y && newAisle.Position.first.y <= m_Aisle[aId].Position.first.y + 1 ) {
+					return false;
+				}
+			}
+		}
+	}
+	else {
+		// è„ë§
+		if ( m_Split[splitId].Position.first.y < m_Area[nowArea.RoomId].Position.first.y ) {
+			auto aisleMinPos = m_Room[nowArea.RoomId].Position.first.x;
+			auto aisleMaxPos = m_Room[nowArea.RoomId].Position.second.x;
+			for ( auto& oId : m_Room[nowArea.RoomId].ObjectData ) {
+				if ( m_Object[oId].Position.first.y != m_Room[nowArea.RoomId].Position.first.y ) continue;
+
+				if ( m_Object[oId].Position.first.x == m_Room[nowArea.RoomId].Position.first.x ) {
+					aisleMinPos = m_Object[oId].Position.second.x + 1;
+				}
+				else {
+					aisleMaxPos = m_Object[oId].Position.first.x - 1;
+				}
+			}
+			if ( aisleCreateNum != nullptr ) *aisleCreateNum = ( aisleMaxPos - aisleMinPos ) / 2;
+
+			// ïîâÆÇ…åqÇ™ÇÈí òHÇçÏê¨
+			newAisle.Position.first	 = Vector2( Random::GetRand( aisleMinPos, aisleMaxPos ), m_Split[splitId].Position.first.y );
+			newAisle.Position.second = Vector2( newAisle.Position.first.x, m_Room[nowArea.RoomId].Position.first.y - 1 );
+
+			// ëºÇÃí òHÇ∆Ç©Ç‘ÇÈèÍçáçÏê¨ÇµÇ»Ç¢
+			for ( auto& aId : m_Room[nowArea.RoomId].AisleData[splitId] ) {
+				if ( m_Aisle[aId].Position.first.x - 1 <= newAisle.Position.first.x && newAisle.Position.first.x <= m_Aisle[aId].Position.first.x + 1 ) {
+					return false;
+				}
+			}
+		}
+		// â∫ë§
+		else{
+			auto aisleMinPos = m_Room[nowArea.RoomId].Position.first.x;
+			auto aisleMaxPos = m_Room[nowArea.RoomId].Position.second.x;
+			for ( auto& oId : m_Room[nowArea.RoomId].ObjectData ) {
+				if ( m_Object[oId].Position.second.y  != m_Room[nowArea.RoomId].Position.second.y ) continue;
+
+				if ( m_Object[oId].Position.first.x == m_Room[nowArea.RoomId].Position.first.x ) {
+					aisleMinPos = m_Object[oId].Position.second.x + 1;
+				}
+				else {
+					aisleMaxPos = m_Object[oId].Position.first.x - 1;
+				}
+			}
+			if ( aisleCreateNum != nullptr ) *aisleCreateNum = ( aisleMaxPos - aisleMinPos ) / 2;
+
+			// ïîâÆÇ…åqÇ™ÇÈí òHÇçÏê¨
+			newAisle.Position.first	 = Vector2( Random::GetRand( aisleMinPos, aisleMaxPos ), m_Room[nowArea.RoomId].Position.second.y + 1 );
+			newAisle.Position.second = Vector2( newAisle.Position.first.x, m_Split[splitId].Position.first.y );
+
+			// ëºÇÃí òHÇ∆Ç©Ç‘ÇÈèÍçáçÏê¨ÇµÇ»Ç¢
+			for ( auto& aId : m_Room[nowArea.RoomId].AisleData[splitId] ) {
+				if ( m_Aisle[aId].Position.first.x - 1 <= newAisle.Position.first.x && newAisle.Position.first.x <= m_Aisle[aId].Position.first.x + 1 ) {
+					return false;
+				}
+			}
+		}
+	}
+	newAisle.Size = newAisle.Position.second - newAisle.Position.first + Vector2( 1, 1 );
+	m_Aisle.emplace_back( newAisle );
+	m_Room[nowArea.RoomId].AisleData[splitId].emplace_back( newAisleId );
+	if ( id != nullptr ) *id = newAisleId;
+
+	return true;
+}
+
+//---------------------------
+// í òHÇåqÇ∞ÇÈí òHÇçÏê¨
+//---------------------------
+void CMap::CreateConnectAisle( const ulong splitId, const ulong newAisleId, const ulong aisleId )
+{
+	const int connectAisleId	= static_cast<int>( m_Aisle.size() );
+
+	AisleData newAisle;
+	newAisle.RoomAisle			= false;
+	newAisle.Adjacent.first		= newAisleId;
+	newAisle.Adjacent.second	= aisleId;
+
+	Vector2 startPos;
+	Vector2 endPos;
+	if ( m_Split[splitId].IsVertical() ) {
+		startPos = m_Aisle[newAisleId].Position.first.y <= m_Aisle[aisleId].Position.first.y ?
+			m_Aisle[newAisleId].Position.first.x < m_Split[splitId].Position.first.x ? m_Aisle[newAisleId].Position.second	: m_Aisle[newAisleId].Position.first :
+			m_Aisle[aisleId].Position.first.x	 < m_Split[splitId].Position.first.x ? m_Aisle[aisleId].Position.second		: m_Aisle[aisleId].Position.first;
+		endPos	 = m_Aisle[newAisleId].Position.first.y <= m_Aisle[aisleId].Position.first.y ?
+			m_Aisle[aisleId].Position.first.x	 < m_Split[splitId].Position.first.x ? m_Aisle[aisleId].Position.second		: m_Aisle[aisleId].Position.first :
+			m_Aisle[newAisleId].Position.first.x < m_Split[splitId].Position.first.x ? m_Aisle[newAisleId].Position.second	: m_Aisle[newAisleId].Position.first;
+	}
+	else {
+		startPos = m_Aisle[newAisleId].Position.first.x <= m_Aisle[aisleId].Position.first.x ?
+			m_Aisle[newAisleId].Position.first.y < m_Split[splitId].Position.first.y ? m_Aisle[newAisleId].Position.second	: m_Aisle[newAisleId].Position.first :
+			m_Aisle[aisleId].Position.first.y	 < m_Split[splitId].Position.first.y ? m_Aisle[aisleId].Position.second		: m_Aisle[aisleId].Position.first;
+		endPos = m_Aisle[newAisleId].Position.first.x <= m_Aisle[aisleId].Position.first.x ?
+			m_Aisle[aisleId].Position.first.y	 < m_Split[splitId].Position.first.y ? m_Aisle[aisleId].Position.second		: m_Aisle[aisleId].Position.first :
+			m_Aisle[newAisleId].Position.first.y < m_Split[splitId].Position.first.y ? m_Aisle[newAisleId].Position.second	: m_Aisle[newAisleId].Position.first;
+	}
+	newAisle.Position.first  = startPos;
+	newAisle.Position.second = endPos;
+	newAisle.Size = newAisle.Position.second - newAisle.Position.first + Vector2( 1, 1 );
+
+	m_Aisle.emplace_back( newAisle );
 }
 
 //---------------------------
