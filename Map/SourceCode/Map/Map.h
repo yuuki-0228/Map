@@ -103,15 +103,15 @@ public:
 	void Create();
 
 	// 表示
-	void Render( const bool dispIdMap, const bool dispDebug );
+	void Render( const bool dispIdMap, const bool dispDebug, const bool dispMap );
 
 private:
-	void MapUpdate();						// マップの更新
+	void MapUpdate();							// マップの更新
 
-	void CreateSplit();						// 分割線の作成
-	void CreateRoom();						// 部屋の作成
-	void CreateObject( const int roomId );	// オブジェクトの作成
-	void CreateAreaAisle();					// 全てのエリアに通路の作成
+	void CreateSplit();							// 分割線の作成
+	void CreateRoom();							// 部屋の作成
+	void CreateWallObject( const int roomId );	// オブジェクト(壁)の作成
+	void CreateAreaAisle();						// 全てのエリアに通路の作成
 	bool CreateAisle(		 const AreaData& nowArea, const AreaData& Area, const ulong splitId, ulong* id = nullptr, int* aisleCreateNum = nullptr );	// 通路の作成
 	void CreateConnectAisle( const ulong splitId, const ulong newAisleId, const ulong aisleId );									// 通路を繋げる通路を作成
 
