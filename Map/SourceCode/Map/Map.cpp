@@ -420,7 +420,9 @@ void CMap::CreateWallObject( const int roomId )
 //---------------------------
 void CMap::CreateAreaAisle()
 {
-	for ( auto& nowArea : m_Area ) {
+	std::vector<AreaData> sortAreaData = m_Area;
+	std::sort( sortAreaData.begin(), sortAreaData.end(), []( const AreaData& a, const AreaData& b ) { return a.SplitData.size() < b.SplitData.size(); } );
+	for ( auto& nowArea : sortAreaData ) {
 		std::vector<std::pair<ulong, std::vector<ulong>>> shuffleSplitData;
 
 		const int splitDataSize = static_cast<int>( nowArea.SplitData.size() );
