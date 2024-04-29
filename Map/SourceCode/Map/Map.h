@@ -86,10 +86,10 @@ public:
 	// 通路
 	struct AisleData
 	{
-		std::pair<Vector2, Vector2> Position;	// 座標<開始, 終了>
-		Vector2						Size;		// サイズ
-		std::pair<ulong, ulong>		Adjacent;	// 隣接しているID<Room_id/Aisle_id, Room_id/Aisle_id>
-		bool						RoomAisle;	// 部屋につながる通路か(true:)
+		std::pair<Vector2, Vector2>				Position;	// 座標<開始, 終了>
+		Vector2									Size;		// サイズ
+		std::pair<ulong, std::vector<ulong>>	Adjacent;	// 隣接しているID<Room_id/Aisle_id, Room_id/Aisle_id>
+		bool									RoomAisle;	// 部屋につながる通路か(true:)
 	};
 
 public:
@@ -114,15 +114,21 @@ private:
 	void CreateAreaAisle();						// 全てのエリアに通路の作成
 	bool CreateAisle(		 const AreaData& nowArea, const AreaData& Area, const ulong splitId, ulong* id = nullptr, int* aisleCreateNum = nullptr );	// 通路の作成
 	void CreateConnectAisle( const ulong splitId, const ulong newAisleId, const ulong aisleId );									// 通路を繋げる通路を作成
-
+	void CreateNotUseSplitAisle();				// 使っていない分割線から通路を作成する
 	void UpdateArea( const ulong splitAreaId, const ulong newSplitId );																// エリアの更新
 	void UpdateSplitArea( const AreaData& oldAreaData, const ulong splitAreaId, const ulong newAreaId, const ulong newSplitId );	// エリアの分割線の更新
 
+	void UseSplit( const ulong splitId );		// 分割線を使用したことを保存
+
+	bool CheckSplitConnect(const std::unordered_map<ulong, bool>& passingRoomIds, const ulong checkRoomId, const ulong roomId );
+
 private:
-	std::vector<std::vector<int>>	m_Map;		// マップ
-	std::vector<AreaData>			m_Area;		// エリア
-	std::vector<SplitData>			m_Split;	// 分割線
-	std::vector<RoomData>			m_Room;		// 部屋
-	std::vector<ObjectData>			m_Object;	// オブジェクト
-	std::vector<AisleData>			m_Aisle;	// 通路
+	std::vector<std::vector<int>>	m_Map;			// マップ
+	std::vector<AreaData>			m_Area;			// エリア
+	std::vector<SplitData>			m_Split;		// 分割線
+	std::vector<RoomData>			m_Room;			// 部屋
+	std::vector<ObjectData>			m_Object;		// オブジェクト
+	std::vector<AisleData>			m_Aisle;		// 通路
+
+	std::vector<ulong>				m_NotUseSplit;	// まだ使用していない分割線
 };

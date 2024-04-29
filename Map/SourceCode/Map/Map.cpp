@@ -63,12 +63,13 @@ namespace {
 }
 
 CMap::CMap()
-	: m_Map		()
-	, m_Area	()
-	, m_Split	()
-	, m_Room	()
-	, m_Object	()
-	, m_Aisle	()
+	: m_Map			()
+	, m_Area		()
+	, m_Split		()
+	, m_Room		()
+	, m_Object		()
+	, m_Aisle		()
+	, m_NotUseSplit	()
 {
 }
 
@@ -99,12 +100,14 @@ void CMap::Init()
 //---------------------------
 void CMap::Create()
 {
+	// •ªŠ„ü‚Ìì¬
 	const int num = Random::GetRand( SPLIT_MIN, SPLIT_MAX );
 	for ( int i = 0; i < num; i++ ) {
 		CreateSplit();
 	}
-	CreateRoom();
-	CreateAreaAisle();
+	CreateRoom();				// •”‰®‚Ìì¬
+	CreateAreaAisle();			// ’Ê˜H‚Ìì¬
+	CreateNotUseSplitAisle();	// g‚Á‚Ä‚¢‚È‚¢•ªŠ„ü‚©‚ç’Ê˜H‚ğì¬
 }
 
 //---------------------------
@@ -214,9 +217,21 @@ void CMap::Render( const bool dispIdMap, const bool dispDebug, const bool dispMa
 			std::cout << "  Size      : w = " << m_Aisle[i].Size.x << ", h = " << m_Aisle[i].Size.y << std::endl;
 			std::cout << "  RoomAisle : " << ( m_Aisle[i].RoomAisle ? "true" : "false" ) << std::endl;
 			std::cout << "  - Adjacent : " << std::endl;
-			std::cout << "    " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( m_Aisle[i].Adjacent.first  * 10 + ( m_Aisle[i].RoomAisle ? ROOM_TYPE : AISLE_TYPE ) ) << std::endl;
-			std::cout << "    " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( m_Aisle[i].Adjacent.second * 10 + ( m_Aisle[i].RoomAisle ? ROOM_TYPE : AISLE_TYPE ) ) << std::endl;
+			std::cout << "    - first : " << std::endl;
+			std::cout << "      " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( m_Aisle[i].Adjacent.first  * 10 + ( m_Aisle[i].RoomAisle ? ROOM_TYPE : AISLE_TYPE ) ) << std::endl;
+			std::cout << "    - second : " << std::endl;
+			for ( auto& rId : m_Aisle[i].Adjacent.second ) {
+				std::cout << "      " << ( m_Aisle[i].RoomAisle ? "Room Id  : " : "Aisle Id : " ) << COLOR_ID( rId * 10 + ( m_Aisle[i].RoomAisle ? ROOM_TYPE : AISLE_TYPE ) ) << std::endl;
+			}
 		}
+		std::cout << "--------------------" << std::endl;
+		std::cout << "    NotUseSplit" << std::endl;
+		std::cout << "--------------------" << std::endl;
+		const int nSize = static_cast<int>( m_NotUseSplit.size() );
+		for ( int i = 0; i < nSize; i++ ) {
+			std::cout << "- Split     : " << COLOR_ID( m_NotUseSplit[i] * 10 + SPLIT_TYPE ) << std::endl;
+		}
+		if ( nSize == 0 ) std::cout << "  none" << std::endl;
 		std::cout << "--------------------" << std::endl;
 	}
 }
@@ -325,7 +340,7 @@ void CMap::CreateSplit()
 	}
 	if ( splitAreaId == -1 ) return;
 	m_Split.emplace_back( newSplit );
-
+	m_NotUseSplit.emplace_back( newSplitId );
 
 	// ƒGƒŠƒA‚ÌXV
 	UpdateArea( splitAreaId, newSplitId );
@@ -443,9 +458,11 @@ void CMap::CreateAreaAisle()
 				if ( m_Room[nowArea.RoomId].AisleData.count( sId ) != 0 )
 				{
 					for ( auto& aId : m_Room[nowArea.RoomId].AisleData[sId] ) {
-						if ( m_Aisle[aId].Adjacent.second == m_Area[shuffleAreaList[i]].RoomId ) {
-							splitSkip = true;
-							break;
+						for ( auto& rId : m_Aisle[aId].Adjacent.second ) {
+							if ( rId == m_Area[shuffleAreaList[i]].RoomId ) {
+								splitSkip = true;
+								break;
+							}
 						}
 					}
 					if ( splitSkip ) break;
@@ -466,12 +483,20 @@ void CMap::CreateAreaAisle()
 				// ’Ê˜H’Ê‚µ‚ğŒq‚°‚é’Ê˜H‚ğì¬
 				const auto aisleId = Random::Shuffle( m_Room[m_Area[shuffleAreaList[i]].RoomId].AisleData[sId] )[0];
 				CreateConnectAisle( sId, newAisleId, aisleId );
+				
+				// Œq‚°‚é’Ê˜H‚É•”‰®Id‚ª“o˜^‚³‚ê‚Ä‚¢‚È‚¢ê‡’Ç‰Á‚·‚é
+				if ( std::find( m_Aisle[aisleId].Adjacent.second.begin(), m_Aisle[aisleId].Adjacent.second.end(), nowArea.RoomId )
+					== m_Aisle[aisleId].Adjacent.second.end() )
+				{
+					m_Aisle[aisleId].Adjacent.second.emplace_back( nowArea.RoomId );
+				}
 
 				// Šm—¦‚©’Ê˜H‚ªì‚ê‚È‚­‚È‚Á‚½‚ç‘¼‚ÌƒGƒŠƒA‚ÍŒq‚°‚¸I—¹‚·‚é
 				if ( i + 1 >= aisleCreateNum || Random::Probability( 1, 2 ) ) break;
 			}
 
 			// Šm—¦‚Å‘¼‚Ì•ªŠ„ü‚ÍŒq‚°‚¸I—¹‚·‚é
+			if ( splitSkip == false ) UseSplit( sId );
 			if ( splitSkip == false && Random::Probability( 1, 5 ) == false ) break;
 		}
 	}
@@ -487,7 +512,7 @@ bool CMap::CreateAisle( const AreaData& nowArea, const AreaData& Area, const ulo
 	AisleData newAisle;
 	newAisle.RoomAisle			= true;
 	newAisle.Adjacent.first		= nowArea.RoomId;
-	newAisle.Adjacent.second	= Area.RoomId;
+	newAisle.Adjacent.second.emplace_back( Area.RoomId );
 
 	if ( m_Split[splitId].IsVertical() ) {
 		// ¶‘¤
@@ -620,7 +645,7 @@ void CMap::CreateConnectAisle( const ulong splitId, const ulong newAisleId, cons
 	AisleData newAisle;
 	newAisle.RoomAisle			= false;
 	newAisle.Adjacent.first		= newAisleId;
-	newAisle.Adjacent.second	= aisleId;
+	newAisle.Adjacent.second.emplace_back( aisleId );
 
 	Vector2 startPos;
 	Vector2 endPos;
@@ -645,6 +670,59 @@ void CMap::CreateConnectAisle( const ulong splitId, const ulong newAisleId, cons
 	newAisle.Size = newAisle.Position.second - newAisle.Position.first + Vector2( 1, 1 );
 
 	m_Aisle.emplace_back( newAisle );
+}
+
+//---------------------------
+// g‚Á‚Ä‚¢‚È‚¢•ªŠ„ü‚©‚ç’Ê˜H‚ğì¬‚·‚é
+//---------------------------
+void CMap::CreateNotUseSplitAisle()
+{
+	for ( auto& splitId : m_NotUseSplit ) {
+		std::vector<std::pair<ulong, std::vector<ulong>>> areaSplitList;
+
+		// Œq‚ª‚Á‚Ä‚¢‚é•”‰®‚ğæ“¾
+		const int areaSize = static_cast<int>( m_Area.size() );
+		for ( int aId = 0; aId < areaSize; aId++ ) {
+			if ( m_Area[aId].SplitData.count( splitId ) == 0 ) continue;
+			areaSplitList.emplace_back( std::make_pair( aId, m_Area[aId].SplitData[splitId] ) );
+		}
+		areaSplitList = Random::Shuffle( areaSplitList );
+
+		// ‚±‚Ì•ªŠ„ü‚É—×Ú‚µ‚Ä‚¢‚é•”‰®‚ª‚Ç‚±‚Æ‚àŒq‚ª‚Á‚Ä‚¢‚È‚¢‚©
+		bool ConnectSplit = false;
+		for ( auto& [aId, areaList] : areaSplitList ) {
+			for ( auto& areaId : areaList ) {
+				std::unordered_map<ulong, bool> passingRoomIds;
+				passingRoomIds[m_Area[aId].RoomId] = true;
+				if ( CheckSplitConnect( passingRoomIds, areaId, m_Area[aId].RoomId ) ) {
+					ConnectSplit = true;
+					break;
+				}
+			}
+			if ( ConnectSplit ) break;
+		}
+		if ( ConnectSplit ) continue;
+
+		// ŒÇ—§‚µ‚Ä‚¢‚é‚½‚ß•”‰®‚ğŒq‚°‚é
+		ulong newAisleId = 0;
+		CreateAisle( m_Area[areaSplitList[0].first], m_Area[areaSplitList[0].second[0]], splitId, &newAisleId );
+
+		// Œq‚°‚é•”‰®‚É‚Ü‚¾’Ê˜H‚ª‚È‚¢ê‡ì¬‚·‚é
+		if ( m_Room[m_Area[areaSplitList[0].second[0]].RoomId].AisleData.count( splitId ) == 0 ) {
+			CreateAisle( m_Area[areaSplitList[0].second[0]], m_Area[areaSplitList[0].first], splitId );
+		}
+
+		// ’Ê˜H’Ê‚µ‚ğŒq‚°‚é’Ê˜H‚ğì¬
+		const auto aisleId = Random::Shuffle( m_Room[m_Area[areaSplitList[0].second[0]].RoomId].AisleData[splitId] )[0];
+		CreateConnectAisle( splitId, newAisleId, aisleId );
+
+		// Œq‚°‚é’Ê˜H‚É•”‰®Id‚ª“o˜^‚³‚ê‚Ä‚¢‚È‚¢ê‡’Ç‰Á‚·‚é
+		if ( std::find( m_Aisle[aisleId].Adjacent.second.begin(), m_Aisle[aisleId].Adjacent.second.end(), m_Area[areaSplitList[0].first].RoomId )
+			== m_Aisle[aisleId].Adjacent.second.end() )
+		{
+			m_Aisle[aisleId].Adjacent.second.emplace_back( m_Area[areaSplitList[0].first].RoomId );
+		}
+	}
 }
 
 //---------------------------
@@ -739,4 +817,39 @@ void CMap::UpdateSplitArea( const AreaData& oldAreaData, const ulong splitAreaId
 	// —v‘f‚ğ’Ç‰Á
 	m_Area[splitAreaId].SplitData[newSplitId].emplace_back( newAreaId );
 	m_Area[newAreaId].SplitData[newSplitId].emplace_back( splitAreaId );
+}
+
+//---------------------------
+// •ªŠ„ü‚ğg—p‚µ‚½‚±‚Æ‚ğ•Û‘¶
+//---------------------------
+void CMap::UseSplit( const ulong splitId )
+{
+	// •Û‘¶‚·‚éID‚ªí‚Ég—p‚µ‚Ä‚¢‚éê‡I—¹‚·‚é
+	if ( std::find( m_NotUseSplit.begin(), m_NotUseSplit.end(), splitId ) == m_NotUseSplit.end() ) {
+		return;
+	}
+
+	// g—p‚µ‚Ä‚¢‚È‚¢ƒŠƒXƒg‚©‚çíœ
+	auto newEnd = std::remove( m_NotUseSplit.begin(), m_NotUseSplit.end(), splitId );
+	m_NotUseSplit.erase( newEnd, m_NotUseSplit.end() );
+}
+
+bool CMap::CheckSplitConnect(const std::unordered_map<ulong, bool>& passingRoomIds, const ulong checkRoomId, const ulong roomId )
+{
+	bool result = false;
+	for ( auto& [sId, AisleList] : m_Room[roomId].AisleData ) {
+		for ( auto& aId : AisleList ) {
+			for ( auto& rId : m_Aisle[aId].Adjacent.second ) {
+				if ( checkRoomId == rId  ) return true;
+
+				auto passing = passingRoomIds;
+				if ( passing[rId] ) continue;
+
+				passing[rId] = true;
+				result = CheckSplitConnect( passing, checkRoomId, rId );
+				if ( result ) return result;
+			}
+		}
+	}
+	return result;
 }
